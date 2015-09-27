@@ -11,9 +11,29 @@ namespace Tetris
 {
     class Program
     {
+        private static readonly string fileName = @"C:\Users\Dmitry\Documents\Visual Studio 2012\Projects\Tetris\tetris-tests-2015\smallest.json";
+
         static void Main(string[] args)
         {
+            var gameBoard = new JsonParser(fileName).Parse();
         }
+    }
+
+    public class Game
+    {
+        private readonly int width;
+        private readonly int height;
+
+
+        private int Width { get { return width; } }
+        private int Height { get { return height; } }
+
+        public Game(GameBoard gameBoard)
+        {
+               
+
+        }
+
     }
 
     public class JsonParser
