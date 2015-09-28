@@ -61,4 +61,16 @@ namespace Tetris
         }
     }
 
+    public enum RotateDirection
+    {
+        Clockwise,
+        Anticlockwise
+    }
+
+    public static class Direction
+    {
+        public static Cell Left = new Cell(0,-1);
+        public static Cell Right = new Cell(0, -1);
+        public static Cell Down = new Cell(1, 0);
+    }
 }
