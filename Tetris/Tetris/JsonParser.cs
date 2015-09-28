@@ -48,6 +48,17 @@ namespace Tetris
         {
             return new Cell(one.X + two.X, one.Y + two.Y);
         }
+
+        public override bool Equals(object obj)
+        {
+            var cell = (obj as Cell);
+            return (cell.X == X && cell.Y == Y);
+        }
+
+        public override int GetHashCode()
+        {
+            return (X.GetHashCode() + Y.GetHashCode());
+        }
     }
 
 }

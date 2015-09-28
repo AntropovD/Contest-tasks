@@ -18,11 +18,12 @@ namespace Tetris
             var commands = gameBoard.Commands.ToCharArray();
 
             var game = new Game(gameBoard);
+
             foreach (var command in commands)
             {
                 game = game.NextStep(game, command);
-                if (game == null)
-                    return;
+//                if (game == null)
+//                    return;
             }
 
         }
@@ -34,34 +35,87 @@ namespace Tetris
         private readonly int height;
         private readonly List<Piece> Pieces;
 
+        private readonly ImmutableHashSet<Cell> UsedCells;
+        private readonly ImmutableHashSet<Cell> CurrCells;
+
+        public Game()
+        {
+            
+        }
+  
         public Game(GameBoard gameBoard)
         {
             width = gameBoard.Width;
             height = gameBoard.Height;
             Pieces = gameBoard.Pieces;
+
+            var initCell = new Cell(0, width/2);   
+
+            UsedCells = ImmutableHashSet<Cell>.Empty;
+            CurrCells = Pieces[0].Cells.Select(cell => cell + initCell).ToImmutableHashSet();
+
         }
 
-        public void NextStep(Game game, char command)
+        private Game(Game game, ImmutableHashSet<Cell> position)
+        {
+            this.width = game.width;
+            this.height = game.height;
+            this.Pieces = game.Pieces;
+
+            this.UsedCells = game.UsedCells;
+            this.CurrCells = position;
+        }
+
+
+        public Game NextStep(Game game, char command)
         {
             switch (command)
             {
+                case 'A':
+                    return Move(new Cell(0, -1));
+                    break;
                 case 'D':
-                    DownCommand();
+                    return Move(new Cell(0, 1));
+                    break;
+                case 'S':
+                    return Move(new Cell(1, 0));
                     break;
                 case 'P':
                     PrintCommand();
+                    return game;
                     break;
             }
+            return null;
         }
 
-        private void DownCommand()
+        private Game Move(Cell direction)
         {
-            throw new NotImplementedException();
+            return new Game(this, CurrCells.Select(cell => cell + direction).ToImmutableHashSet());
         }
 
         private void PrintCommand()
         {
-            throw new NotImplementedException();
+            var field = new char[height, width];
+            for (int i = 0; i < height; ++i)
+            {
+                for (int j = 0; j < width; ++j)
+                {
+                    var c = new Cell(i, j);
+                    if (UsedCells.Contains(c))
+                    {
+                        Console.Write('#');
+                        continue;
+                    }
+                    if (CurrCells.Contains(c))
+                    {
+                        Console.Write('*');
+                        continue;
+                    }
+                    Console.Write('.');
+                }
+                Console.WriteLine();
+            }
+            Console.WriteLine("---------");
         }
     }
 
