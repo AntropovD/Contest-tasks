@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
@@ -7,7 +8,7 @@ namespace Tetris
 {
     class Program
     {
-        static string fileName = @"C:\Users\Dmitry\Documents\Visual Studio 2012\Projects\Tetris\tetris-tests-2015\smallest.json";
+        static string fileName = @"C:\Users\Dmitry\Documents\Visual Studio 2012\Projects\Tetris\tetris-tests-2015\cubes-w8-h8-c100.json";
 
         static void Main(string[] args)
         {
@@ -26,8 +27,8 @@ namespace Tetris
         private readonly int commandIndex;
         private readonly int points;
 
-//        private Cell InitCell { get { return new Cell(0, width / 2); } }
-        private Cell InitCell { get { return new Cell(0, 0); } }
+        private Cell InitCell { get { return new Cell(0, width / 2); } }
+//        private Cell InitCell { get { return new Cell(0, 0); } }
 
         private readonly ImmutableHashSet<Cell> usedCells;
         private readonly ImmutableHashSet<Cell> currCells;
@@ -67,7 +68,19 @@ namespace Tetris
             }
 
             usedCells = allCells;
-            currCells = pieces[pieceIndex].Cells.Select(cell => cell + InitCell).ToImmutableHashSet();
+
+
+            var piecePositions = pieces[pieceIndex].Cells.Select(cell => cell + InitCell).ToImmutableHashSet();
+
+            if (piecePositions.Intersect(usedCells).Count == 0)
+            {
+                PrintPoints(this);
+                currCells = piecePositions;
+                return;
+            }
+            this.points -= 10;
+            usedCells = ImmutableHashSet<Cell>.Empty;
+            currCells = piecePositions;
             PrintPoints(this);
         }
 
