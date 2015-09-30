@@ -30,7 +30,7 @@ namespace Tetris
         private Cell InitCell
         {
             get
-            {
+            {aasd
 //                return new Cell(0, pieces[pieceIndex].Cells.Max(cell => cell.Y));
                 return new Cell(0, width/2);
             }
