@@ -1,193 +1,195 @@
 ﻿using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices.WindowsRuntime;
 
 namespace Tetris
 {
     class Program
     {
         static string fileName = @"C:\Users\Dmitry\Documents\Visual Studio 2012\Projects\Tetris\tetris-tests-2015\smallest.json";
+//        static string fileName = @"C:\Users\Dmitry\Documents\Visual Studio 2012\Projects\Tetris\tetris-tests-2015\cubes-w8-h8-c100.json";
 
         static void Main(string[] args)
         {
-            var gameBoard = new JsonParser(fileName).Parse();
-            var game = new Game(gameBoard);
-            gameBoard.Commands.ToCharArray().Aggregate(game, (current, command) => current.NextStep(current, command));
+            var field = new JsonParser(fileName).Parse();
+            var game = new Game(field);
+            game.Run();
         }
     }
 
-    public class Game
+    class Game
     {
-        private readonly int width;
+        private readonly string commands;
+        private readonly Field Field;
+
+        public Game(Field field)
+        {
+            commands = field.Commands;
+            Field = field;
+        }
+
+        public void Run()
+        {
+            var step = new Step(this.Field);
+            step = commands.ToCharArray().Aggregate(step, (current, command) => current.NextStep(command));
+        }
+    }
+
+    class Step
+    {
         private readonly int height;
-        private readonly List<Piece> pieces;
+        private readonly int width;
         private readonly int pieceIndex;
         private readonly int commandIndex;
         private readonly int points;
 
-        private Cell InitCell
+        private readonly ImmutableList<Piece> Pieces;
+        private readonly ImmutableList<Cell> CurrentPieceCells;
+        private readonly ImmutableHashSet<Cell> UsedCells;
+        private readonly ImmutableHashSet<Cell> RunningCells;
+        
+        public Step(Field field)
         {
-            get
-            {aasd
-//                return new Cell(0, pieces[pieceIndex].Cells.Max(cell => cell.Y));
-                return new Cell(0, width/2);
-            }
-        }
+            height = field.Height;
+            width = field.Width;
+            UsedCells = ImmutableHashSet<Cell>.Empty;
+            Pieces = field.Pieces;
 
-        private readonly ImmutableHashSet<Cell> usedCells;
-        private readonly ImmutableHashSet<Cell> currCells;
+            CurrentPieceCells = Pieces[0].Cells;
+            Cell shift = GetShift(CurrentPieceCells);
 
-        public Game(GameBoard gameBoard)
-        {
-            width = gameBoard.Width;
-            height = gameBoard.Height;
-            pieces = gameBoard.Pieces;
-            pieceIndex = 0;
+            RunningCells = CurrentPieceCells.Select(c => new Cell(c + shift)).ToImmutableHashSet();
+
+            pieceIndex = (pieceIndex + 1) % Pieces.Count;
             commandIndex = 0;
             points = 0;
-        
-            usedCells = ImmutableHashSet<Cell>.Empty;
-            currCells = pieces[pieceIndex].Cells.Select(cell => cell + InitCell).ToImmutableHashSet();
-        }
-
-        private Game(Game game)
-        {
-            width = game.width;
-            height = game.height;
-            pieceIndex = (game.pieceIndex + 1) % game.pieces.Count;
-            commandIndex = game.commandIndex + 1;
-            points = game.points;
-            pieces = game.pieces;
-
-            var allCells = game.usedCells.Union(game.currCells);
-
-            foreach (var line in allCells.Select(cell => cell.X).Distinct())
-            {
-                if (allCells.Count(cell => cell.X == line) == width)
-                {
-                    int lineNumber = line;
-                    allCells = allCells.Where(cell => cell.X != lineNumber).ToImmutableHashSet();
-                    points++;
-                }
-            }
-
-            usedCells = allCells;
-
-
-            var piecePositions = pieces[pieceIndex].Cells.Select(cell => cell + InitCell).ToImmutableHashSet();
-
-            if (piecePositions.Intersect(usedCells).Count == 0)
-            {
-                PrintPoints(this);
-                currCells = piecePositions;
-                return;
-            }
-            this.points -= 10;
-            usedCells = ImmutableHashSet<Cell>.Empty;
-            currCells = piecePositions;
-            PrintPoints(this);
-        }
-
-        private Game(Game game, ImmutableHashSet<Cell> position)
-        {
-            width = game.width;
-            height = game.height;
-            pieceIndex = game.pieceIndex;
-            commandIndex = game.commandIndex + 1;
-            points = game.points;
-            pieces = game.pieces;
-            
-            usedCells = game.usedCells;
-            currCells = position;
         }
         
-        public Game NextStep(Game game, char command)
+        private Step(Step step)
         {
-            PrintCommand();
+            height = step.height;
+            width = step.width;
+            pieceIndex = step.pieceIndex;
+            commandIndex = step.commandIndex + 1;
+            points = step.points;
+
+            Pieces = step.Pieces;
+            CurrentPieceCells = step.CurrentPieceCells;
+            UsedCells = step.UsedCells;
+            RunningCells = step.RunningCells;
+        }
+
+        private Step(Step step, ImmutableHashSet<Cell> cells)
+        {
+            height = step.height;
+            width = step.width;
+            pieceIndex = step.pieceIndex;
+            commandIndex = step.commandIndex + 1;
+            points = step.points;
+
+            Pieces = step.Pieces;
+            CurrentPieceCells = step.CurrentPieceCells;
+            UsedCells = step.UsedCells;
+            RunningCells = cells;
+        }
+
+        private Cell GetShift(ImmutableList<Cell> currentPieceCells)
+        {
+            int shiftX = Math.Abs(currentPieceCells.Min(c => c.X));
+
+            int pieceWidth = currentPieceCells.Max(c => c.Y) - currentPieceCells.Min(c => c.Y) + 1;
+            int shiftY = (width - pieceWidth)/2 + Math.Abs(currentPieceCells.Min(c => c.Y));
+
+            return new Cell(shiftX, shiftY);
+        }
+
+        public Step NextStep(char command)
+        {
+            PrintField();
             switch (command)
             {
-                case 'A':
-                    return Move(Direction.Left);
-                case 'D':
-                    return Move(Direction.Right);
-                case 'S':
-                    return Move(Direction.Down);
-                case 'Q':
-                    return Rotate(RotateDirection.Anticlockwise);
-                case 'E':
-                    return Rotate(RotateDirection.Clockwise);
                 case 'P':
-                    PrintCommand();
-                    return game;
+                    //PrintField();
+                    return new Step(this);
+                case 'A':
+                    return Move(Offset.Left);
+                case 'S':
+                    return Move(Offset.Down);
+                case 'D':
+                    return Move(Offset.Right);
+                case 'Q':
+                    return Rotate(Rotation.Anticlockwise);
+                case 'E':
+                    return Rotate(Rotation.Clockwise);
                 default:
-                    return game;
+                    return this;
             }
         }
 
-        private Game Rotate(RotateDirection direction)
+        private Step Rotate(Rotation clockwise)
         {
-            if (direction == RotateDirection.Anticlockwise)
+            throw new NotImplementedException();
+        }
+
+        private Step Move(Cell to)
+        {
+            var cells = RunningCells.Select(c => c+to).ToImmutableHashSet();
+
+            if (CheckBorders(cells))
             {
-                var t = this.currCells.
-                                Select(cell => 
-                                    new Cell(
-                                        )
-                                    )
-                        );
-
+                return new Step(this, cells);
             }
+
+
+            var allCells = UsedCells.Union(RunningCells);
+            CheckRows(allCells);
         }
 
-        private Game Move(Cell direction)
+        private void CheckRows(ImmutableHashSet<Cell> allCells)
         {
-            var newPosition = currCells.Select(cell => cell + direction).ToImmutableHashSet();
-            if (CheckBorders(newPosition))
+            foreach (int row in allCells.Select(c => c.X).Distinct())
             {
-                return new Game(this, newPosition);
+                var line = allCells.Where(c => c.X == row);
             }
-
-            var game = new Game(this);
-            return game;
         }
 
-        private bool CheckBorders(ImmutableHashSet<Cell> newPosition)
+        private bool CheckRow()
+
+        private bool CheckBorders(ImmutableHashSet<Cell> cells)
         {
-            foreach (var cell in newPosition)
-            {
-                if (cell.X < 0 || cell.X >= height || cell.Y < 0 || cell.Y >= width)
-                    return false;
-                if (usedCells.Contains(cell))
-                    return false;
-            }
-            return true;
+            return cells.All(CheckCell);
         }
 
-        private void PrintPoints(Game game)
+        private bool CheckCell(Cell cell)
         {
-            Console.WriteLine("{0} {1}", game.commandIndex, game.points);
+            return !(cell.X < 0 || cell.X > width || cell.Y < 0 || cell.Y > height);
         }
 
-        private void PrintCommand()
+        private void PrintField()
         {
             for (int i = 0; i < height; ++i)
             {
                 for (int j = 0; j < width; ++j)
                 {
                     var cell = new Cell(i, j);
-                    if (usedCells.Contains(cell))
+                    if (UsedCells.Contains(cell))
                         Console.Write('#');
-                    else if (currCells.Contains(cell))
+                    else if (RunningCells.Contains(cell))
                         Console.Write('*');
                     else
                         Console.Write('.');
                 }
                 Console.WriteLine();
             }
-            Console.WriteLine("---------");
+            Console.WriteLine("--------");
         }
-    } 
 
-
+        public void PrintScore()
+        {
+            Console.WriteLine("{0} {1}", commandIndex, points);
+        }
+    }
 }
