@@ -58,12 +58,12 @@ namespace Tetris
             UsedCells = ImmutableHashSet<Cell>.Empty;
             Pieces = field.Pieces;
 
-            CurrentPieceCells = Pieces[0].Cells;
+            CurrentPieceCells = Pieces[1].Cells;
             Cell shift = GetShift(CurrentPieceCells);
 
             RunningCells = CurrentPieceCells.Select(c => new Cell(c + shift)).ToImmutableHashSet();
 
-            pieceIndex = (pieceIndex + 1) % Pieces.Count;
+            pieceIndex = 2 % Pieces.Count;
             commandIndex = 0;
             points = 0;
         }
@@ -120,10 +120,10 @@ namespace Tetris
                     return Move(Offset.Down);
                 case 'D':
                     return Move(Offset.Right);
-                case 'Q':
+              /*  case 'Q':
                     return Rotate(Rotation.Anticlockwise);
                 case 'E':
-                    return Rotate(Rotation.Clockwise);
+                    return Rotate(Rotation.Clockwise);*/
                 default:
                     return this;
             }
@@ -136,7 +136,7 @@ namespace Tetris
 
         private Step Move(Cell to)
         {
-            var cells = RunningCells.Select(c => c+to).ToImmutableHashSet();
+            var cells = RunningCells.Select(c => c+to);
 
             if (CheckBorders(cells))
             {
@@ -146,17 +146,29 @@ namespace Tetris
 
             var allCells = UsedCells.Union(RunningCells);
             CheckRows(allCells);
+            return null;
         }
 
         private void CheckRows(ImmutableHashSet<Cell> allCells)
         {
             foreach (int row in allCells.Select(c => c.X).Distinct())
             {
-                var line = allCells.Where(c => c.X == row);
+                int rowNumber = row;
+                if (CheckRowFull(allCells, row))
+                {
+                    int ans = 1;
+                }
             }
         }
 
-        private bool CheckRow()
+        private bool CheckRowFull(ImmutableHashSet<Cell> allCells, int row)
+        {
+            return allCells.Where(c => c.X == row).
+                            ToImmutableHashSet().
+                            SetEquals(
+                                Enumerable.Range(0, width).Select(i => new Cell(row, i))
+                            );
+        }
 
         private bool CheckBorders(ImmutableHashSet<Cell> cells)
         {
