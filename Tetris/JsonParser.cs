@@ -83,5 +83,4 @@ namespace Tetris
         Clockwise,
         Anticlockwise
     }
-    
 }

@@ -2,12 +2,10 @@
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
-using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices.WindowsRuntime;
 
 namespace Tetris
 {
-    class Program
+    public static class Program
     {
         static string fileName = @"C:\Users\Dmitry\Documents\Visual Studio 2012\Projects\Tetris\tetris-tests-2015\smallest.json";
 //        static string fileName = @"C:\Users\Dmitry\Documents\Visual Studio 2012\Projects\Tetris\tetris-tests-2015\cubes-w8-h8-c100.json";
@@ -33,8 +31,8 @@ namespace Tetris
 
         public void Run()
         {
-            var step = new Step(this.Field);
-            step = commands.ToCharArray().Aggregate(step, (current, command) => current.NextStep(command));
+            var step = new Step(Field);
+            commands.ToCharArray().Aggregate(step, (current, command) => current.NextStep(command));
         }
     }
 
@@ -82,7 +80,7 @@ namespace Tetris
             RunningCells = step.RunningCells;
         }
 
-        private Step(Step step, ImmutableHashSet<Cell> cells)
+        private Step(Step step, IEnumerable<Cell> cells)
         {
             height = step.height;
             width = step.width;
@@ -93,19 +91,14 @@ namespace Tetris
             Pieces = step.Pieces;
             CurrentPieceCells = step.CurrentPieceCells;
             UsedCells = step.UsedCells;
-            RunningCells = cells;
+            RunningCells = cells.ToImmutableHashSet();
         }
 
-        private Cell GetShift(ImmutableList<Cell> currentPieceCells)
+        private Step(Step field, Tuple<IEnumerable<Cell>, int> pointsNCells)
         {
-            int shiftX = Math.Abs(currentPieceCells.Min(c => c.X));
-
-            int pieceWidth = currentPieceCells.Max(c => c.Y) - currentPieceCells.Min(c => c.Y) + 1;
-            int shiftY = (width - pieceWidth)/2 + Math.Abs(currentPieceCells.Min(c => c.Y));
-
-            return new Cell(shiftX, shiftY);
+            throw new NotImplementedException();
         }
-
+        
         public Step NextStep(char command)
         {
             PrintField();
@@ -120,45 +113,82 @@ namespace Tetris
                     return Move(Offset.Down);
                 case 'D':
                     return Move(Offset.Right);
-              /*  case 'Q':
-                    return Rotate(Rotation.Anticlockwise);
-                case 'E':
-                    return Rotate(Rotation.Clockwise);*/
+                /*  case 'Q':
+                      return Rotate(Rotation.Anticlockwise);
+                  case 'E':
+                      return Rotate(Rotation.Clockwise);*/
                 default:
                     return this;
             }
         }
-
-        private Step Rotate(Rotation clockwise)
-        {
-            throw new NotImplementedException();
-        }
-
+       
         private Step Move(Cell to)
         {
-            var cells = RunningCells.Select(c => c+to);
+            var cells = RunningCells.Select(c => c + to).ToList();
 
             if (CheckBorders(cells))
             {
                 return new Step(this, cells);
             }
 
-
+            PrintScore();
             var allCells = UsedCells.Union(RunningCells);
-            CheckRows(allCells);
+            var pointsNCells = GetPointsFromCleaning(allCells);
+
+            if (CanAddNextPiece(pointsNCells.Item1))
+            {
+                return new Step(this, pointsNCells);
+            }
+                
             return null;
+           
         }
 
-        private void CheckRows(ImmutableHashSet<Cell> allCells)
+        private bool CanAddNextPiece(IEnumerable<Cell> cells)
         {
-            foreach (int row in allCells.Select(c => c.X).Distinct())
+            return !Pieces[pieceIndex].Cells.
+                                Select(c => c + GetShift(Pieces[pieceIndex].Cells)).
+                                Intersect(cells).
+                                Any();
+        }
+
+        private Step Rotate(Rotation clockwise)
+        {
+            throw new System.NotImplementedException();
+        }
+        
+        private Cell GetShift(ImmutableList<Cell> currentPieceCells)
+        {
+            int shiftX = Math.Abs(currentPieceCells.Min(c => c.X));
+
+            int pieceWidth = currentPieceCells.Max(c => c.Y) - currentPieceCells.Min(c => c.Y) + 1;
+            int shiftY = (width - pieceWidth) / 2 + Math.Abs(currentPieceCells.Min(c => c.Y));
+
+            return new Cell(shiftX, shiftY);
+        }
+
+        private Tuple<IEnumerable<Cell>, int> GetPointsFromCleaning(ImmutableHashSet<Cell> allCells)
+        {
+            IEnumerable<Cell> newCells = allCells.ToList();
+            int addPoints = 0;
+            foreach (int row in allCells.Select(c => c.X).Distinct().
+                                         Where(row => CheckRowFull(allCells, row)))
             {
                 int rowNumber = row;
-                if (CheckRowFull(allCells, row))
-                {
-                    int ans = 1;
-                }
+                newCells = newCells.Where(c => c.X != rowNumber);
+                addPoints++;
             }
+            return new Tuple<IEnumerable<Cell>, int>(newCells, addPoints);
+        }
+     
+        private bool CheckBorders(IEnumerable<Cell> cells)
+        {
+            return cells.All(CheckCell);
+        }
+
+        private bool CheckCell(Cell cell)
+        {
+            return !(cell.X < 0 || cell.X > width || cell.Y < 0 || cell.Y > height);
         }
 
         private bool CheckRowFull(ImmutableHashSet<Cell> allCells, int row)
@@ -168,16 +198,6 @@ namespace Tetris
                             SetEquals(
                                 Enumerable.Range(0, width).Select(i => new Cell(row, i))
                             );
-        }
-
-        private bool CheckBorders(ImmutableHashSet<Cell> cells)
-        {
-            return cells.All(CheckCell);
-        }
-
-        private bool CheckCell(Cell cell)
-        {
-            return !(cell.X < 0 || cell.X > width || cell.Y < 0 || cell.Y > height);
         }
 
         private void PrintField()
@@ -199,7 +219,7 @@ namespace Tetris
             Console.WriteLine("--------");
         }
 
-        public void PrintScore()
+        private void PrintScore()
         {
             Console.WriteLine("{0} {1}", commandIndex, points);
         }
