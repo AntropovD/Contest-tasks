@@ -1,12 +1,9 @@
-﻿using System.Collections.Generic;
-using System.Collections.Immutable;
+﻿using System.Collections.Immutable;
 using System.IO;
-using System.Linq;
 using Newtonsoft.Json;
 
 namespace Tetris
 {
- 
     public class JsonParser
     {
         private readonly string fileName;
@@ -79,8 +76,6 @@ namespace Tetris
                 return false;
             return (cell.X == X && cell.Y == Y);
         }
-
-
         
         public override int GetHashCode()
         {
@@ -106,5 +101,4 @@ namespace Tetris
         Clockwise,
         Anticlockwise
     }
-
 }

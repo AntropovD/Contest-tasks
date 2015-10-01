@@ -102,21 +102,19 @@ namespace Tetris
             width = step.width;
             commandIndex = step.commandIndex + 1;
             points = step.points + pointsNCells.Item2;
-
-            Center = step.Center;
+                        
             Pieces = step.Pieces;
             CurrentPieceCells = Pieces[step.pieceIndex].Cells;
             UsedCells = pointsNCells.Item1.ToImmutableHashSet();
-            Cell shift = GetShift(CurrentPieceCells);
-            RunningCells = CurrentPieceCells.Select(c => new Cell(c + shift)).ToImmutableHashSet();
-
+            Center = GetShift(CurrentPieceCells);
+            RunningCells = CurrentPieceCells.Select(c => new Cell(c + Center)).ToImmutableHashSet();
 
             pieceIndex = (step.pieceIndex + 1) % step.Pieces.Count;
         }
         
         public Step NextStep(char command)
         {
-            PrintField();
+        //    PrintField();
             switch (command)
             {
                 case 'P':
@@ -140,16 +138,25 @@ namespace Tetris
         private Step Move(Cell to)
         {
             var cells = RunningCells.Select(c => c + to).ToList();
-
             if (CheckBorders(cells) )
-            {
-                var newCenter = Center + to;
-                return new Step(this, cells, newCenter);
-            }
+                return new Step(this, cells, Center + to);
+            return CollisionWork();
+        }
+        
+        private Step Rotate(Rotation clockwise)
+        {
+            var rotCells = CurrentPieceCells.Select(c => new Cell(c.Y, c.X));
+            var runCells = rotCells.Select(c => c + Center).ToList();
+            if (CheckBorders(runCells))
+                return new Step(this, runCells, Center);
 
+            return CollisionWork();
+        }
+
+        private Step CollisionWork()
+        {
             var pointsNCells = GetPointsFromCleaning(UsedCells.Union(RunningCells));
             PrintScore(pointsNCells.Item2);
-
             if (!CanAddNextPiece(pointsNCells.Item1))
             {
                 pointsNCells = new Tuple<IEnumerable<Cell>, int>(ImmutableHashSet<Cell>.Empty, pointsNCells.Item2 - 10);
@@ -159,28 +166,17 @@ namespace Tetris
 
         private bool CanAddNextPiece(IEnumerable<Cell> cells)
         {
+            var newCenter = GetShift(Pieces[pieceIndex].Cells);
             return !Pieces[pieceIndex].Cells.
-                                Select(c => c + GetShift(Pieces[pieceIndex].Cells)).
-                                Intersect(cells).
-                                Any();
+                                Select(c => c + newCenter).
+                                Intersect(cells).Any();
         }
 
-        private Step Rotate(Rotation clockwise)
-        {
-
-
-
-
-
-        }
-        
         private Cell GetShift(ImmutableList<Cell> currentPieceCells)
         {
             int shiftY = Math.Abs(currentPieceCells.Min(c => c.Y));
-
             int pieceWidth = currentPieceCells.Max(c => c.X) - currentPieceCells.Min(c => c.X) + 1;
             int shiftX = (width - pieceWidth) / 2 + Math.Abs(currentPieceCells.Min(c => c.X));
-
             return new Cell(shiftX, shiftY);
         }
 
@@ -193,6 +189,7 @@ namespace Tetris
             {
                 int rowNumber = row;
                 newCells = newCells.Where(c => c.Y != rowNumber);
+                newCells = newCells.Where(r => r.Y < rowNumber).Select(c => new Cell(c.X, c.Y+1));
                 addPoints++;
             }
             return new Tuple<IEnumerable<Cell>, int>(newCells, addPoints);
@@ -212,9 +209,7 @@ namespace Tetris
         {
             return allCells.Where(c => c.Y == row).
                             ToImmutableHashSet().
-                            SetEquals(
-                                Enumerable.Range(0, width).Select(i => new Cell(i, row))
-                            );
+                            SetEquals(Enumerable.Range(0, width).Select(i => new Cell(i, row)));
         }
 
         private void PrintField()
@@ -233,7 +228,6 @@ namespace Tetris
                 }
                 Console.WriteLine();
             }
-            Console.WriteLine("--------");
         }
 
         private void PrintScore(int addPoints)
