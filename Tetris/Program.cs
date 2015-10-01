@@ -7,16 +7,16 @@ namespace Tetris
 {
     public static class Program
     {
-//        static string fileName = @"C:\Users\Dmitry\Documents\Visual Studio 2012\Projects\Tetris\tetris-tests-2015\smallest.json";
-        static string fileName = @"C:\Users\Dmitry\Documents\Visual Studio 2012\Projects\Tetris\tetris-tests-2015\cubes-w1000-h1000-c1000000.json";
+        static string fileName = @"C:\Users\Dmitry\Documents\Visual Studio 2012\Projects\Tetris\tetris-tests-2015\smallest.json";
+//        static string fileName = @"C:\Users\Dmitry\Documents\Visual Studio 2012\Projects\Tetris\tetris-tests-2015\cubes-w1000-h1000-c1000000.json";
 
         static void Main(string[] args)
         {
-            var game = new Game(args[0]);
+            var game = new Game(fileName);
             game.Run();
         }
     }
-
+    
     class Game
     {
         private readonly string commands;
@@ -44,6 +44,7 @@ namespace Tetris
         private readonly int commandIndex;
         private readonly int points;
 
+        private readonly Cell Center;
         private readonly ImmutableList<Piece> Pieces;
         private readonly ImmutableList<Cell> CurrentPieceCells;
         private readonly ImmutableHashSet<Cell> UsedCells;
@@ -57,11 +58,10 @@ namespace Tetris
             Pieces = field.Pieces;
 
             CurrentPieceCells = Pieces[0].Cells;
-            Cell shift = GetShift(CurrentPieceCells);
+            Center = GetShift(CurrentPieceCells);
+            RunningCells = CurrentPieceCells.Select(c => new Cell(c + Center)).ToImmutableHashSet();
 
-            RunningCells = CurrentPieceCells.Select(c => new Cell(c + shift)).ToImmutableHashSet();
-
-            pieceIndex = 2 % Pieces.Count;
+            pieceIndex = 1;
             commandIndex = 0;
             points = 0;
         }
@@ -74,13 +74,14 @@ namespace Tetris
             commandIndex = step.commandIndex + 1;
             points = step.points;
 
+            Center = step.Center;
             Pieces = step.Pieces;
             CurrentPieceCells = step.CurrentPieceCells;
             UsedCells = step.UsedCells;
             RunningCells = step.RunningCells;
         }
 
-        private Step(Step step, IEnumerable<Cell> cells)
+        private Step(Step step, IEnumerable<Cell> cells, Cell newCenter)
         {
             height = step.height;
             width = step.width;
@@ -88,6 +89,7 @@ namespace Tetris
             commandIndex = step.commandIndex + 1;
             points = step.points;
 
+            Center = newCenter;
             Pieces = step.Pieces;
             CurrentPieceCells = step.CurrentPieceCells;
             UsedCells = step.UsedCells;
@@ -101,6 +103,7 @@ namespace Tetris
             commandIndex = step.commandIndex + 1;
             points = step.points + pointsNCells.Item2;
 
+            Center = step.Center;
             Pieces = step.Pieces;
             CurrentPieceCells = Pieces[step.pieceIndex].Cells;
             UsedCells = pointsNCells.Item1.ToImmutableHashSet();
@@ -113,11 +116,11 @@ namespace Tetris
         
         public Step NextStep(char command)
         {
-//            PrintField();
+            PrintField();
             switch (command)
             {
                 case 'P':
-//                    PrintField();
+                    PrintField();
                     return new Step(this);
                 case 'A':
                     return Move(Offset.Left);
@@ -125,10 +128,10 @@ namespace Tetris
                     return Move(Offset.Down);
                 case 'D':
                     return Move(Offset.Right);
-                /*  case 'Q':
-                      return Rotate(Rotation.Anticlockwise);
-                  case 'E':
-                      return Rotate(Rotation.Clockwise);*/
+                case 'Q':
+                    return Rotate(Rotation.Anticlockwise);
+                case 'E':
+                    return Rotate(Rotation.Clockwise);
                 default:
                     return this;
             }
@@ -140,9 +143,9 @@ namespace Tetris
 
             if (CheckBorders(cells) )
             {
-                return new Step(this, cells);
+                var newCenter = Center + to;
+                return new Step(this, cells, newCenter);
             }
-
 
             var pointsNCells = GetPointsFromCleaning(UsedCells.Union(RunningCells));
             PrintScore(pointsNCells.Item2);
@@ -152,7 +155,6 @@ namespace Tetris
                 pointsNCells = new Tuple<IEnumerable<Cell>, int>(ImmutableHashSet<Cell>.Empty, pointsNCells.Item2 - 10);
             }
             return new Step(this, pointsNCells);
-           
         }
 
         private bool CanAddNextPiece(IEnumerable<Cell> cells)
@@ -165,15 +167,19 @@ namespace Tetris
 
         private Step Rotate(Rotation clockwise)
         {
-            throw new System.NotImplementedException();
+
+
+
+
+
         }
         
         private Cell GetShift(ImmutableList<Cell> currentPieceCells)
         {
-            int shiftX = Math.Abs(currentPieceCells.Min(c => c.X));
+            int shiftY = Math.Abs(currentPieceCells.Min(c => c.Y));
 
-            int pieceWidth = currentPieceCells.Max(c => c.Y) - currentPieceCells.Min(c => c.Y) + 1;
-            int shiftY = (width - pieceWidth) / 2 + Math.Abs(currentPieceCells.Min(c => c.Y));
+            int pieceWidth = currentPieceCells.Max(c => c.X) - currentPieceCells.Min(c => c.X) + 1;
+            int shiftX = (width - pieceWidth) / 2 + Math.Abs(currentPieceCells.Min(c => c.X));
 
             return new Cell(shiftX, shiftY);
         }
@@ -182,11 +188,11 @@ namespace Tetris
         {
             IEnumerable<Cell> newCells = allCells.ToList();
             int addPoints = 0;
-            foreach (int row in allCells.Select(c => c.X).Distinct().
+            foreach (int row in allCells.Select(c => c.Y).Distinct().
                                          Where(row => CheckRowFull(allCells, row)))
             {
                 int rowNumber = row;
-                newCells = newCells.Where(c => c.X != rowNumber);
+                newCells = newCells.Where(c => c.Y != rowNumber);
                 addPoints++;
             }
             return new Tuple<IEnumerable<Cell>, int>(newCells, addPoints);
@@ -194,9 +200,7 @@ namespace Tetris
      
         private bool CheckBorders(IList<Cell> cells)
         {
-            var b =  cells.All(CheckCell);
-            var b2 = UsedCells.Intersect(cells).Any();
-            return b && !b2;
+            return cells.All(CheckCell) && !UsedCells.Intersect(cells).Any();
         }
 
         private bool CheckCell(Cell cell)
@@ -206,10 +210,10 @@ namespace Tetris
 
         private bool CheckRowFull(ImmutableHashSet<Cell> allCells, int row)
         {
-            return allCells.Where(c => c.X == row).
+            return allCells.Where(c => c.Y == row).
                             ToImmutableHashSet().
                             SetEquals(
-                                Enumerable.Range(0, width).Select(i => new Cell(row, i))
+                                Enumerable.Range(0, width).Select(i => new Cell(i, row))
                             );
         }
 
@@ -219,7 +223,7 @@ namespace Tetris
             {
                 for (int j = 0; j < width; ++j)
                 {
-                    var cell = new Cell(i, j);
+                    var cell = new Cell(j, i);
                     if (UsedCells.Contains(cell))
                         Console.Write('#');
                     else if (RunningCells.Contains(cell))

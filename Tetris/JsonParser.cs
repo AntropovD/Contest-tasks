@@ -6,6 +6,7 @@ using Newtonsoft.Json;
 
 namespace Tetris
 {
+ 
     public class JsonParser
     {
         private readonly string fileName;
@@ -23,15 +24,29 @@ namespace Tetris
    
     public class Field
     {
-        public int Width { get; set; }
-        public int Height { get; set; }
-        public ImmutableList<Piece> Pieces { get; set; }
-        public string Commands { get; set; }
+        [JsonConstructor]
+        public Field(int width, int height, ImmutableList<Piece> pieces, string commands)
+        {
+            Width = width;
+            Height = height;
+            Pieces = pieces;
+            Commands = commands;
+        }
+
+        public int Width { get; private set; }
+        public int Height { get; private set; }
+        public ImmutableList<Piece> Pieces { get; private set; }
+        public string Commands { get; private set; }
     }
 
     public class Piece
     {
-        public ImmutableList<Cell> Cells { get; set; }
+        [JsonConstructor]
+        public Piece(ImmutableList<Cell> cells)
+        {
+            Cells = cells;
+        }
+        public ImmutableList<Cell> Cells { get; private set; }
     }
 
     public class Cell
@@ -65,22 +80,31 @@ namespace Tetris
             return (cell.X == X && cell.Y == Y);
         }
 
+
+        
         public override int GetHashCode()
         {
-            return (X.GetHashCode() ^ Y.GetHashCode());
+            // 317, 331 - Prime numbers
+            int prime1 = 317;
+            int prime2 = 331;
+
+            int hash = prime1 * prime2 + X.GetHashCode();
+            hash = hash * prime2 + Y.GetHashCode();
+            return hash;
         }
     }
 
-    public static class Offset
+    static class Offset
     {
-        public static readonly Cell Left = new Cell(0, -1);
-        public static readonly Cell Down = new Cell(1, 0);
-        public static readonly Cell Right = new Cell(0, 1);
+        public static readonly Cell Left = new Cell(-1, 0);
+        public static readonly Cell Down = new Cell(0, 1);
+        public static readonly Cell Right = new Cell(1, 0);
     }
 
-    public enum Rotation
+    enum Rotation
     {
         Clockwise,
         Anticlockwise
     }
+
 }
