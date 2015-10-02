@@ -7,9 +7,7 @@ namespace Tetris
 {
     public static class Program
     {
-//        static string fileName = @"C:\Users\Dmitry\Documents\Visual Studio 2012\Projects\Tetris\tetris-tests-2015\smallest.json";
-//        static string fileName = @"C:\Users\Dmitry\Documents\Visual Studio 2012\Projects\Tetris\tetris-tests-2015\cubes-w8-h8-c100.json";
-//        static string fileName = @"C:\Users\Dmitry\Documents\Visual Studio 2012\Projects\Tetris\tetris-tests-2015\cubes-w1000-h1000-c1000000.json";
+        static string fileName = @"C:\Users\Dmitry\Documents\Visual Studio 2012\Projects\Tetris\Test\tetris-tests-2015\clever-w9-h10-c200.json";
 
         static void Main(string[] args)
         {
@@ -132,7 +130,7 @@ namespace Tetris
         {
 //            Console.WriteLine(commandIndex+" "+command);
 //            PrintField();
-//            
+            
 
             switch (command)
             {
@@ -165,7 +163,7 @@ namespace Tetris
         private Step Rotate(Rotation clockwise)
         {
             int modify = clockwise == Rotation.Clockwise ? -1 : 1;
-            var rotateCells = CurrentPieceCells.Select(c => new Cell(c.Y * modify, c.X));
+            var rotateCells = CurrentPieceCells.Select(c => new Cell(c.Y * modify, -modify * c.X));
             var runCells = rotateCells.Select(c => c + Center).ToList();
             if (CheckBorders(runCells))
                 return new Step(this, runCells, rotateCells, Center);
@@ -208,8 +206,9 @@ namespace Tetris
                                          Where(row => CheckRowFull(allCells, row)))
             {
                 int rowNumber = row;
-                newCells = newCells.Where(c => c.Y != rowNumber);
-                newCells = newCells.Where(r => r.Y < rowNumber).Select(c => new Cell(c.X, c.Y+1));
+                newCells = newCells.Where(c => c.Y != rowNumber).ToList();
+                var shiftCells = newCells.Where(r => r.Y < rowNumber).Select(c => new Cell(c.X, c.Y+1));
+                newCells = newCells.Where(r => r.Y > rowNumber).Union(shiftCells);
                 addPoints++;
             }
             return new Tuple<IEnumerable<Cell>, int>(newCells, addPoints);

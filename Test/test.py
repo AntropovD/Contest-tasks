@@ -39,4 +39,4 @@ for i in myjson:
     		Fail+=1
     	print ("###########################")
 
-print ("Passed {0} tests.\r\n Failed {1} tests.".format(Ok, Fail))
+print ("Passed {0} tests.\r\nFailed {1} tests.".format(Ok, Fail))
