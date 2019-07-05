@@ -1,2 +1,1 @@
-# Sunday
-Sunday bloody sunday)
+# Contest-tasks
